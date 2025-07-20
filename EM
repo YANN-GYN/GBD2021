@@ -1,0 +1,423 @@
+library(tidyverse)
+library(dplyr)
+library(purrr)
+library(flextable)
+library(officer)
+
+# 数据读取并合并 --------------------------------------------------------------------
+rm(list=ls())
+# 指定主目录路径
+# parent_folder <- "/Users/yanhailan/Desktop/GBD database/English EM cause of injury all age all region"
+
+# # 确保每个子文件夹中只读取一个 CSV 文件
+# csv_data <- list.dirs(parent_folder, recursive = FALSE) %>%
+#   map_df(function(folder) {
+#     csv_file <- list.files(folder, pattern = "\\.csv$", full.names = TRUE)
+#     if (length(csv_file) == 1) {
+#       read.csv(csv_file)
+#     } else {
+#       warning(paste("No CSV or multiple CSV files in folder:", folder))
+#       NULL
+#     }
+#   })
+
+# # 将合并的数据保存为单一的CSV文件
+# write.csv(csv_data, "mydata.csv", row.names = FALSE)
+mydata <- read.csv("mydata.csv",header = T)
+str(mydata)
+colnames(mydata)
+head(mydata)
+unique(mydata$sex_name)
+unique(mydata$measure_name)
+unique(mydata$metric_name)
+unique(mydata$age_name)
+unique(mydata$cause_name)
+summary(mydata)
+
+#select选择变量
+mydata2 <- select(mydata, measure_name, location_name, sex_name, age_name, cause_name, metric_name, year, val, upper, lower)
+
+# 数据清洗 --------------------------------------------------------------------
+
+# 定义需要匹配的区域名称27个地区
+regions <- c("Global", "High SDI", "High-middle SDI", "Middle SDI", "Low-middle SDI", "Low SDI", 
+             "Central Asia", "Central Europe", "Eastern Europe", "Australasia", 
+             "High-income Asia Pacific", "High-income North America", "Western Europe", 
+             "Andean Latin America", "Caribbean", "Central Latin America", "Southern Latin America", 
+             "Tropical Latin America", "North Africa and Middle East", "Southeast Asia", "South Asia", 
+             "East Asia", "Oceania", "Central Sub-Saharan Africa", "Eastern Sub-Saharan Africa", 
+             "Southern Sub-Saharan Africa", "Western Sub-Saharan Africa")
+
+regions <- c("Global", "High SDI", "High-middle SDI", "Middle SDI", "Low-middle SDI", "Low SDI")
+
+# 使用 %in% 进行筛选并按指定列排序
+mydata_region <- mydata2 %>% 
+  filter(location_name %in% regions) %>% 
+  arrange(location_name, age_name, metric_name, year)
+write.csv(mydata_region, "mydata_region")
+
+unique(mydata_region$location_name)
+mydata_region <- read.csv("mydata_region")
+
+
+# incidence in 27 region including SDI and global -------------------------
+# 在筛选的27个地区中的incidence
+EM_Incidence <- mydata_region %>% 
+  filter(measure_name=="Incidence") %>% 
+  filter(location_name %in% regions)
+
+write.csv(EM_Incidence, "EM_Incidence.csv")
+EM_DALYs <- mydata_region %>% 
+  filter(measure_name=="DALYs (Disability-Adjusted Life Years)") %>% 
+  filter(location_name %in% regions)
+#按照地区顺序排列
+order <- read.csv("/Users/yanhailan/Desktop/GBD database/GBD/order.csv", header=F)
+ 
+EM_Incidence$location_name <- factor(EM_Incidence$location_name,
+                                      levels = order$V1,
+                                      ordered = TRUE)
+
+unique(EM_Incidence$age_name)
+unique(EM_Incidence$metric_name)
+
+# 描述性统计 -------------------------------------------------------------------
+# 1990年发病率Incidence
+EM_1990 <- subset(EM_Incidence, EM_Incidence$year==1990 &
+                    EM_Incidence$age_name=='All ages' &
+                    EM_Incidence$metric_name=='Number')
+
+##删除重复数据
+EM_1990 <- EM_1990 %>% distinct()
+
+EM_1990 <- EM_1990[-c(20,23,24), ]
+EM_1990 <- EM_1990[,c(3,9,10,11)]
+EM_1990$val <- round(EM_1990$val / 1000, 2)
+EM_1990$upper <- round(EM_1990$upper / 1000,2)
+EM_1990$lower <- round(EM_1990$lower / 1000,2)
+EM_1990$Num_1990 <- paste(EM_1990$lower,EM_1990$upper,sep = ' - ') 
+EM_1990$Num_1990 <- paste(EM_1990$Num_1990,')',sep = '')            
+EM_1990$Num_1990 <- paste('(',EM_1990$Num_1990,sep = '')  
+EM_1990$Num_1990 <- paste(EM_1990$val,EM_1990$Num_1990,sep = '\n') 
+
+
+#2021年发病人数
+EM_2021 <- subset(EM_Incidence, EM_Incidence$year==2021 &
+                    EM_Incidence$age_name=='All ages' &
+                    EM_Incidence$metric_name=='Number')
+
+##删除重复数据
+EM_2021 <- EM_2021 %>% distinct()
+##需要27个地区的数据
+EM_2021 <- EM_2021[-c(20,23,24), ]
+EM_2021 <- EM_2021[,c(3,9,10,11)]
+EM_2021$val <- round(EM_2021$val / 1000,2)
+EM_2021$upper <- round(EM_2021$upper / 1000,2)
+EM_2021$lower <- round(EM_2021$lower / 1000,2)
+EM_2021$Num_2021 <- paste(EM_2021$lower,EM_2021$upper,sep = ' - ') 
+EM_2021$Num_2021 <- paste(EM_2021$Num_2021,')',sep = '')            
+EM_2021$Num_2021 <- paste('(',EM_2021$Num_2021,sep = '')  
+EM_2021$Num_2021 <- paste(EM_2021$val,EM_2021$Num_2021,sep = '\n') 
+
+
+##1990ASR
+
+ASR_1990 <- subset(EM_Incidence, EM_Incidence$year == 1990 & 
+                     EM_Incidence$age_name == 'Age-standardized' & 
+                     EM_Incidence$metric_name == 'Rate')
+##删除重复数据
+ASR_1990 <- ASR_1990 %>% distinct()
+##需要27个地区的数据
+ASR_1990 <- ASR_1990[-c(20,23,24), ]
+
+ASR_1990 <- ASR_1990[,c(3,8,9,10,11)]  ### 只取需要的变量：地区以及对应的数值
+ASR_1990$val <- round(ASR_1990$val,2)  ###取整
+ASR_1990$lower <- round(ASR_1990$lower,2)###取整
+ASR_1990$upper <- round(ASR_1990$upper,2) ###取整
+ASR_1990$ASR_1990 <- paste(ASR_1990$lower,ASR_1990$upper,sep = ' - ') ## 用-连接95%UI上下数值
+ASR_1990$ASR_1990 <- paste(ASR_1990$ASR_1990,')',sep = '')  ##95%UI前后加括号             
+ASR_1990$ASR_1990 <- paste('(',ASR_1990$ASR_1990,sep = '')  ##95%UI前后加括号
+ASR_1990$ASR_1990 <- paste(ASR_1990$val,ASR_1990$ASR_1990,sep = '\n') ##数据和95%UI用空格键连接
+
+
+##2021ASR
+ASR_2021 <- subset(EM_Incidence, EM_Incidence$year == 2021 & 
+                     EM_Incidence$age_name == 'Age-standardized' & 
+                     EM_Incidence$metric_name == 'Rate')
+##删除重复数据
+ASR_2021 <- ASR_2021 %>% distinct()
+##需要27个地区的数据
+ASR_2021 <- ASR_2021[-c(20,23,24), ]
+
+ASR_2021 <- ASR_2021[,c(3,8,9,10,11)]  ### 只取需要的变量：地区以及对应的数值
+ASR_2021$val <- round(ASR_2021$val,2)  ###取整
+ASR_2021$lower <- round(ASR_2021$lower,2)###取整
+ASR_2021$upper <- round(ASR_2021$upper,2) ###取整
+ASR_2021$ASR_2021 <- paste(ASR_2021$lower,ASR_2021$upper,sep = ' - ') ## 用-连接95%UI上下数值
+ASR_2021$ASR_2021 <- paste(ASR_2021$ASR_2021,')',sep = '')  ##95%UI前后加括号             
+ASR_2021$ASR_2021 <- paste('(',ASR_2021$ASR_2021,sep = '')  ##95%UI前后加括号
+ASR_2021$ASR_2021 <- paste(ASR_2021$val,ASR_2021$ASR_2021,sep = '\n') ##数据和95%UI用空格键连接
+
+
+##### EAPC
+EAPC <- subset(EM_Incidence, EM_Incidence$age_name=='Age-standardized' & 
+                 EM_Incidence$metric_name== 'Rate' &
+                 EM_Incidence$measure_name=='Incidence' )
+EAPC <- EAPC[,c(3,8,9)] ##获取地区、年份以及对应的数值
+
+country <- ASR_1990$location_name
+
+country <- EM_1990$location_name
+
+EAPC_cal <- data.frame(location=country,EAPC=rep(0,times=6),UCI=rep(0,times=6),LCI=rep(0,times=6)) 
+for (i in 1:6){  ###总共22个地区，所以循环22次
+  country_cal <- as.character(EAPC_cal[i,1]) ### 依次取对应的地区
+  a <- subset(EAPC, EAPC$location_name==country_cal)  ##取对应地区的数据子集
+  a$y <- log(a$val)  ##根据EAPC计算方法计算y值
+  mod_simp_reg<-lm(y~year,data=a) ##根据EAPC计算方法做线性回归方程
+  estimate <- (exp(summary(mod_simp_reg)[["coefficients"]][2,1])-1)*100 ##根据EAPC计算方法取方程beta值来计算EAPC
+  low <- (exp(summary(mod_simp_reg)[["coefficients"]][2,1]-1.96*summary(mod_simp_reg)[["coefficients"]][2,2])-1)*100
+  ### 计算EAPC的95%可信区间的上限值
+  high <- (exp(summary(mod_simp_reg)[["coefficients"]][2,1]+1.96*summary(mod_simp_reg)[["coefficients"]][2,2])-1)*100
+  ### 计算EAPC的95%可信区间的下限值
+  EAPC_cal[i,2] <- estimate
+  EAPC_cal[i,4] <- low
+  EAPC_cal[i,3] <- high
+}
+
+# 将 EAPC_cal 中的 location 列重命名为 location_name
+EAPC_cal <- EAPC_cal %>% rename(location_name = location)
+
+EAPC_cal$EAPC <- round(EAPC_cal$EAPC,2)  ##保留2位小数点
+EAPC_cal$UCI <- round(EAPC_cal$UCI,2)
+EAPC_cal$LCI <- round(EAPC_cal$LCI,2)
+EAPC_cal$EAPC_CI <- paste(EAPC_cal$LCI,EAPC_cal$UCI,sep = ' to ') 
+EAPC_cal$EAPC_CI <- paste(EAPC_cal$EAPC_CI,')',sep = '') 
+EAPC_cal$EAPC_CI <- paste('(',EAPC_cal$EAPC_CI,sep = '') 
+EAPC_cal$EAPC_CI <- paste(paste0(EAPC_cal$EAPC,'%'),EAPC_cal$EAPC_CI,sep = '\n')  
+
+EM_1990 <- EM_1990[,c(1,5)]  ###取地区和整合好的变量
+ASR_1990 <- ASR_1990[,c(1,6)]
+EM_2021 <- EM_2021[,c(1,5)]
+ASR_2021 <- ASR_2021[,c(1,6)]
+EAPC_cal <- EAPC_cal[,c(1,5)]
+
+Incidence <- merge(EM_1990,ASR_1990,by='location_name')
+Incidence <- merge(Incidence,EM_2021,by='location_name')
+Incidence <- merge(Incidence,ASR_2021,by='location_name')
+Incidence <- merge(Incidence,EAPC_cal,by='location_name')
+
+
+write.csv(Incidence, "Results for incidence.csv")
+#按照顺序
+Incidence_ordered <- Incidence %>%
+  mutate(location_name = factor(location_name, levels = order$V1)) %>%
+  arrange(location_name)
+
+
+
+write.csv(Incidence_ordered, "Results for incidence ordered.csv")
+
+# ASIR 1990 2021 21柱状图 ------------------------------------------------------
+regions <- c(
+  "Central Asia", "Central Europe", "Eastern Europe", "Australasia", 
+  "High-income Asia Pacific", "High-income North America", "Western Europe", 
+  "Andean Latin America", "Caribbean", "Central Latin America", "Southern Latin America", 
+  "Tropical Latin America", "North Africa and Middle East", "Southeast Asia", "South Asia", 
+  "East Asia", "Oceania", "Central Sub-Saharan Africa", "Eastern Sub-Saharan Africa", 
+  "Southern Sub-Saharan Africa", "Western Sub-Saharan Africa"
+)
+
+ASR_1990 <- ASR_1990 %>% mutate(Year = 1990)
+ASR_2021 <- ASR_2021 %>% mutate(Year = 2021)
+ASR_data <- bind_rows(ASR_1990, ASR_2021)
+ASR_data <- ASR_data %>% 
+  filter(location_name %in% regions)
+# 绘制柱状图
+p <- ggplot(ASR_data, aes(x = location_name, y = val, fill = factor(Year))) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  scale_fill_manual(values = c("1990" = "steelblue", "2021" = "lightblue")) + 
+  labs(title = "ASR in Different Regions (1990 vs. 2021)",
+       x = "Region",
+       y = "Age-Standardized Rate (ASR)",
+       fill = "Year") + 
+  theme_minimal() + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.margin = margin(10, 10, 10, 50)
+  )
+
+# 显示图像
+print(p)
+
+# 保存图像
+ggsave("ASR_in_Different_Regions_1990_vs_2021.png", plot = p, width = 12, height = 8, dpi = 300)
+# ASDR 1990--------------------------------------------------------------------
+
+ASDR_1990 <- subset(EM_DALYs, EM_DALYs$year == 1990 & 
+                     EM_DALYs$age_name == 'Age-standardized' & 
+                     EM_DALYs$metric_name == 'Rate')
+##删除重复数据
+ASDR_1990 <- ASDR_1990 %>% distinct()
+##需要27个地区的数据
+ASDR_1990 <- ASDR_1990[-c(20,23,24), ]
+
+ASDR_1990 <- ASDR_1990[,c(3,8,9,10,11)]  ### 只取需要的变量：地区以及对应的数值
+ASDR_1990$val <- round(ASDR_1990$val,2)  ###取整
+ASDR_1990$lower <- round(ASDR_1990$lower,2)###取整
+ASDR_1990$upper <- round(ASDR_1990$upper,2) ###取整
+ASDR_1990$ASDR_1990 <- paste(ASDR_1990$lower,ASDR_1990$upper,sep = ' - ') ## 用-连接95%UI上下数值
+ASDR_1990$ASDR_1990 <- paste(ASDR_1990$ASDR_1990,')',sep = '')  ##95%UI前后加括号             
+ASDR_1990$ASDR_1990 <- paste('(',ASDR_1990$ASDR_1990,sep = '')  ##95%UI前后加括号
+ASDR_1990$ASDR_1990 <- paste(ASDR_1990$val,ASDR_1990$ASDR_1990,sep = '\n') ##数据和95%UI用空格键连接
+
+
+
+# ASDR 2021 ---------------------------------------------------------------
+
+ASDR_2021 <- subset(EM_DALYs, EM_DALYs$year == 2021 & 
+                      EM_DALYs$age_name == 'Age-standardized' & 
+                      EM_DALYs$metric_name == 'Rate')
+##删除重复数据
+ASDR_2021 <- ASDR_2021 %>% distinct()
+##需要27个地区的数据
+ASDR_2021 <- ASDR_2021[-c(20,23,24), ]
+
+ASDR_2021 <- ASDR_2021[,c(3,8,9,10,11)]  ### 只取需要的变量：地区以及对应的数值
+ASDR_2021$val <- round(ASDR_2021$val,2)  ###取整
+ASDR_2021$lower <- round(ASDR_2021$lower,2)###取整
+ASDR_2021$upper <- round(ASDR_2021$upper,2) ###取整
+ASDR_2021$ASDR_2021 <- paste(ASDR_2021$lower,ASDR_2021$upper,sep = ' - ') ## 用-连接95%UI上下数值
+ASDR_2021$ASDR_2021 <- paste(ASDR_2021$ASDR_2021,')',sep = '')  ##95%UI前后加括号             
+ASDR_2021$ASDR_2021 <- paste('(',ASDR_2021$ASDR_2021,sep = '')  ##95%UI前后加括号
+ASDR_2021$ASDR_2021 <- paste(ASDR_2021$val,ASDR_2021$ASDR_2021,sep = '\n') ##数据和95%UI用空格键连接
+
+
+# EAPC DALYs --------------------------------------------------------------
+
+EAPC <- subset(EM_DALYs, EM_DALYs$age_name=='Age-standardized' & 
+                 EM_DALYs$metric_name== 'Rate' &
+                 EM_DALYs$measure_name=='DALYs (Disability-Adjusted Life Years)' )
+EAPC <- EAPC[,c(3,8,9)] ##获取地区、年份以及对应的数值
+
+country <- ASDR_1990$location_name
+
+EAPC_cal <- data.frame(location=country,EAPC=rep(0,times=6),UCI=rep(0,times=6),LCI=rep(0,times=6)) 
+for (i in 1:6){  ###总共22个地区，所以循环22次
+  country_cal <- as.character(EAPC_cal[i,1]) ### 依次取对应的地区
+  a <- subset(EAPC, EAPC$location_name==country_cal)  ##取对应地区的数据子集
+  a$y <- log(a$val)  ##根据EAPC计算方法计算y值
+  mod_simp_reg<-lm(y~year,data=a) ##根据EAPC计算方法做线性回归方程
+  estimate <- (exp(summary(mod_simp_reg)[["coefficients"]][2,1])-1)*100 ##根据EAPC计算方法取方程beta值来计算EAPC
+  low <- (exp(summary(mod_simp_reg)[["coefficients"]][2,1]-1.96*summary(mod_simp_reg)[["coefficients"]][2,2])-1)*100
+  ### 计算EAPC的95%可信区间的上限值
+  high <- (exp(summary(mod_simp_reg)[["coefficients"]][2,1]+1.96*summary(mod_simp_reg)[["coefficients"]][2,2])-1)*100
+  ### 计算EAPC的95%可信区间的下限值
+  EAPC_cal[i,2] <- estimate
+  EAPC_cal[i,4] <- low
+  EAPC_cal[i,3] <- high
+}
+
+# 将 EAPC_cal 中的 location 列重命名为 location_name
+EAPC_cal <- EAPC_cal %>% rename(location_name = location)
+
+EAPC_cal$EAPC <- round(EAPC_cal$EAPC,2)  ##保留2位小数点
+EAPC_cal$UCI <- round(EAPC_cal$UCI,2)
+EAPC_cal$LCI <- round(EAPC_cal$LCI,2)
+
+# ASDR 1990 2021柱状图 -------------------------------------------------------
+
+ASDR_1990 <- ASDR_1990 %>% mutate(Year = 1990)
+ASDR_2021 <- ASDR_2021 %>% mutate(Year = 2021)
+ASDR_data <- bind_rows(ASDR_1990, ASDR_2021)
+ASDR_data <- ASDR_data %>% 
+  filter(location_name %in% regions)
+# 绘制柱状图
+p <- ggplot(ASR_data, aes(x = location_name, y = val, fill = factor(Year))) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  scale_fill_manual(values = c("1990" = "steelblue", "2021" = "lightblue")) + 
+  labs(title = "ASDR in Different Regions (1990 vs. 2021)",
+       x = "Region",
+       y = "Age-Standardized Rate (ASR)",
+       fill = "Year") + 
+  theme_minimal() + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.margin = margin(10, 10, 10, 50)
+  )
+
+# 显示图像
+print(p)
+
+# 保存图像
+ggsave("ASDR_in_Different_Regions_1990_vs_2021.png", plot = p, width = 12, height = 8, dpi = 300)
+
+
+
+
+
+# 条形图 ---------------------------------------------------------------------
+
+
+# 相关性GBD ------------------------------------------------------------------
+names(ASR_1990) [3] <- 'ASR'
+names(EM_1990) [2] <- 'case'
+Total <- merge(EM_1990,EAPC_cal, by='location_name')
+Total <- merge(Total, ASR_1990, by='location_name')
+Total_incidence <- Total
+Total_incidence$group <- 'ASIR'
+##分组
+library(ggplot2)
+Total_incidence$group <- factor(Total_incidence$ASR,
+                      levels = 'ASIR',
+                      ordered = TRUE)
+p1 <- ggplot(Total, aes(ASR, EAPC, size = case))+
+  geom_point(color='#0099CC')+
+  geom_smooth(data=Total, aes(ASR, EAPC),se =.8,colour='black',span=1)+
+  scale_size(name = 'Cases in 1990', breaks = c(100,1000,10000,50000),
+             labels = c("<500","500-1,000","10,000-50,000",">50,000"))+ facet_grid(.~group, scales = "free")+
+  theme_light()
+p1
+##不分组
+p1 <- ggplot(Total, aes(x = ASR, y = EAPC, size = case)) +
+  geom_point(color = '#0099CC') +  # 添加蓝色散点
+  geom_smooth(aes(group = 1), se = .8, colour = 'white', span = 2) +  # 添加平滑曲线并指定 group = 1
+  scale_size(name = 'Cases in 1990', 
+             breaks = c(100, 1000, 10000, 50000),
+             labels = c("<500", "500-1,000", "10,000-50,000", ">50,000")) +
+  theme_light()  # 设置浅色背景
+
+# 加载示例数据和库
+library(ggplot2)
+
+# 绘图
+p1 <- ggplot(Total, aes(x = ASR, y = EAPC, size = case)) +
+  geom_point(color = '#0099CC') +  # 设置圆点的颜色为蓝色
+  geom_smooth(aes(group = 1), se = .8, colour = 'black', span = 1) +
+  
+  # 定义自定义大小标尺
+  scale_size(
+    name = 'Cases in 1990', 
+    breaks = c(100, 1000, 10000, 50000),
+    labels = c("<500", "500-1,000", "1,000-10,000", ">10,000"),
+    range = c(1, 10)  # 控制图例中圆点的大小范围
+  ) +
+  
+  # 美化主题
+  theme_light() +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold")
+  ) +
+  
+  # 设置标题
+  labs(title = "ASR vs. EAPC with Cases in 1990") 
+
+# 显示图表
+print(p1)
+ggsave("ASR_vs_EAPC.png", plot = p1, width = 10, height = 6, dpi = 300)
+
+cor.test(Total_incidence$EAPC, Total_incidence$ASR,method = "pearson")
