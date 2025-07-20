@@ -421,3 +421,776 @@ print(p1)
 ggsave("ASR_vs_EAPC.png", plot = p1, width = 10, height = 6, dpi = 300)
 
 cor.test(Total_incidence$EAPC, Total_incidence$ASR,method = "pearson")
+
+
+
+——————---————————————————————————————————————————————————————————————————————————
+library(tidyverse)
+library(dplyr)
+library(purrr)
+library(flextable)
+library(officer)
+library(ggplot2)
+library(scales)
+# 数据加载 --------------------------------------------------------------------
+#my data region是已经处理好的27个地区的CSV
+mydata_region <- read.csv("mydata_region")
+# DALYS in 27 regions including global and SDI ----------------------------
+unique(mydata_region$metric_name)
+unique(mydata_region$measure_name)
+      
+EM_DALYs <- mydata_region %>% 
+  filter(measure_name=="DALYs (Disability-Adjusted Life Years)")
+write.csv(EM_DALYs, "EM_DALYs.csv")
+
+# 描述性1990年DALYS -----------------------------------------------------------
+
+EM_DALYs_1990 <- subset(EM_DALYs, EM_DALYs$year==1990 &
+                          EM_DALYs$age_name=='All ages' &
+                          EM_DALYs$metric_name=='Number')
+##删除重复数据
+EM_DALYs_1990 <- EM_DALYs_1990 %>% distinct()
+
+EM_DALYs_1990 <- EM_DALYs_1990[-c(20,23,24), ]
+EM_DALYs_1990 <- EM_DALYs_1990[,c(3,8,9,10,11)]
+EM_DALYs_1990$val <- round(EM_DALYs_1990$val / 1000, 2)
+EM_DALYs_1990$upper <- round(EM_DALYs_1990$upper / 1000,2)
+EM_DALYs_1990$lower <- round(EM_DALYs_1990$lower / 1000,2)
+EM_DALYs_1990$Num_1990 <- paste(EM_DALYs_1990$lower,EM_DALYs_1990$upper,sep = ' - ') 
+EM_DALYs_1990$Num_1990 <- paste(EM_DALYs_1990$Num_1990,')',sep = '')            
+EM_DALYs_1990$Num_1990 <- paste('(',EM_DALYs_1990$Num_1990,sep = '')  
+EM_DALYs_1990$Num_1990 <- paste(EM_DALYs_1990$val,EM_DALYs_1990$Num_1990,sep = '\n') 
+
+# 描述2021年的DALYS -----------------------------------------------------------
+
+EM_DALYs_2021 <- subset(EM_DALYs, EM_DALYs$year==2021 &
+                          EM_DALYs$age_name=='All ages' &
+                          EM_DALYs$metric_name=='Number')
+##删除重复数据
+EM_DALYs_2021 <- EM_DALYs_2021 %>% distinct()
+
+EM_DALYs_2021 <- EM_DALYs_2021[-c(20,23,24), ]
+EM_DALYs_2021 <- EM_DALYs_2021[,c(3,8,9,10,11)]
+EM_DALYs_2021$val <- round(EM_DALYs_2021$val / 1000, 2)
+EM_DALYs_2021$upper <- round(EM_DALYs_2021$upper / 1000,2)
+EM_DALYs_2021$lower <- round(EM_DALYs_2021$lower / 1000,2)
+EM_DALYs_2021$Num_2021 <- paste(EM_DALYs_2021$lower,EM_DALYs_2021$upper,sep = ' - ') 
+EM_DALYs_2021$Num_2021 <- paste(EM_DALYs_2021$Num_2021,')',sep = '')            
+EM_DALYs_2021$Num_2021 <- paste('(',EM_DALYs_2021$Num_2021,sep = '')  
+EM_DALYs_2021$Num_2021 <- paste(EM_DALYs_2021$val,EM_DALYs_2021$Num_2021,sep = '\n') 
+
+
+
+# 1990ASR（DALYS） ----------------------------------------------------------
+ASR_DALYs_1990 <- subset(EM_DALYs, EM_DALYs$year == 1990 & 
+                     EM_DALYs$age_name == 'Age-standardized' & 
+                     EM_DALYs$metric_name == 'Rate')
+##删除重复数据
+ASR_DALYs_1990 <- ASR_DALYs_1990 %>% distinct()
+##需要27个地区的数据
+ASR_DALYs_1990 <- ASR_DALYs_1990[-c(20,23,24), ]
+
+ASR_DALYs_1990 <- ASR_DALYs_1990[,c(3,8,9,10,11)]  ### 只取需要的变量：地区以及对应的数值
+ASR_DALYs_1990$val <- round(ASR_DALYs_1990$val,2)  ###取整
+ASR_DALYs_1990$lower <- round(ASR_DALYs_1990$lower,2)###取整
+ASR_DALYs_1990$upper <- round(ASR_DALYs_1990$upper,2) ###取整
+ASR_DALYs_1990$ASR_DALYs_1990 <- paste(ASR_DALYs_1990$lower,ASR_DALYs_1990$upper,sep = ' - ') ## 用-连接95%UI上下数值
+ASR_DALYs_1990$ASR_DALYs_1990 <- paste(ASR_DALYs_1990$ASR_DALYs_1990,')',sep = '')  ##95%UI前后加括号             
+ASR_DALYs_1990$ASR_DALYs_1990 <- paste('(',ASR_DALYs_1990$ASR_DALYs_1990,sep = '')  ##95%UI前后加括号
+ASR_DALYs_1990$ASR_DALYs_1990 <- paste(ASR_DALYs_1990$val,ASR_DALYs_1990$ASR_DALYs_1990,sep = '\n') ##数据和95%UI用空格键连接
+
+
+# 2021ASR（DALYS) -----------------------------------------------------------
+
+ASR_DALYs_2021 <- subset(EM_DALYs, EM_DALYs$year == 2021 & 
+                     EM_DALYs$age_name == 'Age-standardized' & 
+                     EM_DALYs$metric_name == 'Rate')
+##删除重复数据
+ASR_DALYs_2021 <- ASR_DALYs_2021 %>% distinct()
+##需要27个地区的数据
+ASR_DALYs_2021 <- ASR_DALYs_2021[-c(20,23,24), ]
+
+ASR_DALYs_2021 <- ASR_DALYs_2021[,c(3,8,9,10,11)]  ### 只取需要的变量：地区以及对应的数值
+ASR_DALYs_2021$val <- round(ASR_DALYs_2021$val,2)  ###取整
+ASR_DALYs_2021$lower <- round(ASR_DALYs_2021$lower,2)###取整
+ASR_DALYs_2021$upper <- round(ASR_DALYs_2021$upper,2) ###取整
+ASR_DALYs_2021$ASR_DALYs_2021 <- paste(ASR_DALYs_2021$lower,ASR_DALYs_2021$upper,sep = ' - ') ## 用-连接95%UI上下数值
+ASR_DALYs_2021$ASR_DALYs_2021 <- paste(ASR_DALYs_2021$ASR_DALYs_2021,')',sep = '')  ##95%UI前后加括号             
+ASR_DALYs_2021$ASR_DALYs_2021 <- paste('(',ASR_DALYs_2021$ASR_DALYs_2021,sep = '')  ##95%UI前后加括号
+ASR_DALYs_2021$ASR_DALYs_2021 <- paste(ASR_DALYs_2021$val,ASR_DALYs_2021$ASR_DALYs_2021,sep = '\n') ##数据和95%UI用空格键连接
+
+# EAPC --------------------------------------------------------------------
+
+EAPC <- subset(EM_DALYs, EM_DALYs$age_name=='Age-standardized' & 
+                 EM_DALYs$metric_name== 'Rate' &
+                 EM_DALYs$measure_name=='DALYs (Disability-Adjusted Life Years)' )
+EAPC <- EAPC[,c(3,8,9,10,11)] ##获取地区、年份以及对应的数值
+
+country <- EM_DALYs_1990$location_name
+
+EAPC_cal <- data.frame(location=country,EAPC=rep(0,times=27),UCI=rep(0,times=27),LCI=rep(0,times=27)) 
+for (i in 1:27){  ###总共27个地区，所以循环27次
+  country_cal <- as.character(EAPC_cal[i,1]) ### 依次取对应的地区
+  a <- subset(EAPC, EAPC$location_name==country_cal)  ##取对应地区的数据子集
+  a$y <- log(a$val)  ##根据EAPC计算方法计算y值
+  mod_simp_reg<-lm(y~year,data=a) ##根据EAPC计算方法做线性回归方程
+  estimate <- (exp(summary(mod_simp_reg)[["coefficients"]][2,1])-1)*100 ##根据EAPC计算方法取方程beta值来计算EAPC
+  low <- (exp(summary(mod_simp_reg)[["coefficients"]][2,1]-1.96*summary(mod_simp_reg)[["coefficients"]][2,2])-1)*100
+  ### 计算EAPC的95%可信区间的上限值
+  high <- (exp(summary(mod_simp_reg)[["coefficients"]][2,1]+1.96*summary(mod_simp_reg)[["coefficients"]][2,2])-1)*100
+  ### 计算EAPC的95%可信区间的下限值
+  EAPC_cal[i,2] <- estimate
+  EAPC_cal[i,4] <- low
+  EAPC_cal[i,3] <- high
+}
+
+# 将 EAPC_cal 中的 location 列重命名为 location_name
+EAPC_cal <- EAPC_cal %>% rename(location_name = location)
+
+EAPC_cal$EAPC <- round(EAPC_cal$EAPC,2)  ##保留2位小数点
+EAPC_cal$UCI <- round(EAPC_cal$UCI,2)
+EAPC_cal$LCI <- round(EAPC_cal$LCI,2)
+EAPC_cal$EAPC_CI <- paste(EAPC_cal$LCI,EAPC_cal$UCI,sep = ' to ') 
+EAPC_cal$EAPC_CI <- paste(EAPC_cal$EAPC_CI,')',sep = '') 
+EAPC_cal$EAPC_CI <- paste('(',EAPC_cal$EAPC_CI,sep = '') 
+EAPC_cal$EAPC_CI <- paste(paste0(EAPC_cal$EAPC,'%'),EAPC_cal$EAPC_CI,sep = '\n')  
+
+EM_DALYs_1990 <- EM_DALYs_1990[,c(1,6)]  ###取地区和整合好的变量
+ASR_DALYs_1990 <- ASR_DALYs_1990[,c(1,6)]
+EM_DALYs_2021 <- EM_DALYs_2021[,c(1,6)]
+ASR_DALYs_2021 <- ASR_DALYs_2021[,c(1,6)]
+EAPC_cal <- EAPC_cal[,c(1,5)]
+
+DALYs <- merge(EM_DALYs_1990,ASR_DALYs_1990,by='location_name')
+DALYs <- merge(DALYs,EM_DALYs_2021,by='location_name')
+DALYs <- merge(DALYs,ASR_DALYs_2021,by='location_name')
+DALYs <- merge(DALYs,EAPC_cal,by='location_name')
+
+
+write.csv(DALYs, "Results for DALYs.csv")
+#按照顺序
+order <- read.csv("/Users/yanhailan/Desktop/GBD database/GBD视频/GBD_Video-1-4节/order.csv", header=F)
+DALYs_ordered <- DALYs %>%
+  mutate(location_name = factor(location_name, levels = order$V1)) %>%
+  arrange(location_name)
+
+write.csv(DALYs_ordered, "Results for DALYs ordered.csv")
+
+
+# SDI—Figure—DALYs --------------------------------------------------------
+
+# 筛选SDI的DALYs ---------------------------------------------------------
+EM_DALYs <- read.csv("EM_DALYs.csv")
+EM_DALYs <- EM_DALYs %>% 
+  filter(age_name == "All ages") %>% 
+  filter(metric_name == "Number") %>% 
+  filter(location_name %in% c(
+    "Global", "Low SDI", "Low-middle SDI", "Middle SDI", "High-middle SDI", "High SDI"))
+write.csv(EM_DALYs, "EM_DALYs_all ages.csv")
+unique(EM_DALYs$location_name)
+##删除重复数据
+EM_DALYs <- EM_DALYs %>% distinct()
+EM_DALYs <- EM_DALYs[-c(25,27,31,32,34,35), ]
+EM_DALYs <- EM_DALYs[,c(4,9,10)]
+
+# 确保年份列是因子类型，以便按顺序显示
+EM_DALYs$year <- as.factor(EM_DALYs$year)
+
+# 绘制柱状图
+library(ggplot2)
+library(scales)
+# 检查数据结构
+str(EM_DALYs)
+
+# 检查年份范围
+range(EM_DALYs$year)
+
+# 检查数值列的统计信息
+summary(EM_DALYs$val)
+# 将年份列转换为数值
+EM_DALYs$year <- as.numeric(as.character(EM_DALYs$year))
+
+# 自定义颜色
+custom_colors <- c(
+  "Global" = "#92A5D1",      # 蓝色
+  "Low SDI" = "#C5DFF4",     # 浅蓝色
+  "Low-middle SDI" = "#AEB2D1",  # 灰色
+  "Middle SDI" = "#D9B9D4",  # 粉色
+  "High-middle SDI" = "#7C9895", # 深绿色
+  "High SDI" = "#C9DCC4"     # 浅绿色
+)
+ggplot(EM_DALYs, aes(x = year, y = val, fill = location_name)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(
+    title = "DALYs of EM from 1990 to 2021 in SDI Region",
+    x = "Year",
+    y = "Endometriosis Cases",
+    fill = "SDI Region"
+  ) +
+  theme_bw(base_size = 14) +
+  facet_wrap(~ location_name, scales = "free_y") +
+  scale_y_continuous(labels = comma) +
+  scale_fill_manual(values = custom_colors) +
+  scale_x_continuous(breaks = seq(1990, 2021, by = 4), limits = c(1990, 2021)) +
+  theme(
+    strip.background = element_rect(fill = "grey80"),
+    strip.text = element_text(size = 12, face = "bold"),
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 14)
+  )
+
+
+
+# 绘制柱状图
+ggplot(EM_DALYs, aes(x = year, y = val, fill = location_name)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(
+    title = "DALYs of EM from 1990 to 2021 in SDI Region",
+    x = "Year",
+    y = "Endometriosis Cases",
+    fill = "SDI Region"
+  ) +
+  theme_bw(base_size = 14) +  # 使用白色背景
+  facet_wrap(~ location_name, scales = "free_y") +
+  scale_y_continuous(labels = comma) +
+  scale_fill_manual(values = custom_colors) +  # 使用自定义颜色
+  scale_x_discrete(limits = c(seq(1990, 2021, by = 4), 2021)) +  # 确保 2021 始终显示
+  theme(
+    strip.background = element_rect(fill = "grey80"),
+    strip.text = element_text(size = 12, face = "bold"),  # 调整面板标题样式
+    legend.position = "right",  # 将图例放置在右侧
+    legend.title = element_text(size = 12),  # 调整图例标题样式
+    legend.text = element_text(size = 10),   # 调整图例文本样式
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),  # 主标题样式
+    plot.subtitle = element_text(hjust = 0.5, size = 14)  # 副标题样式
+  )
+
+library(ggplot2)
+library(scales)
+
+# 确保年份是因子或连续变量，调整绘图函数
+EM_DALYs$year <- as.integer(as.character(EM_DALYs$year))  # 将年份转换为整数
+
+# 自定义颜色
+custom_colors <- c(
+  "Global" = "#92A5D1",      # 蓝色
+  "Low SDI" = "#C5DFF4",     # 浅蓝色
+  "Low-middle SDI" = "#AEB2D1",  # 灰色
+  "Middle SDI" = "#D9B9D4",  # 粉色
+  "High-middle SDI" = "#7C9895", # 深绿色
+  "High SDI" = "#C9DCC4"     # 浅绿色
+)
+ggplot(EM_DALYs, aes(x = year, y = val, fill = location_name)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(
+    title = "DALYs of EM from 1990 to 2021 in SDI Region",
+    x = "Year",
+    y = "Endometriosis Cases",
+    fill = "SDI Region"
+  ) +
+  theme_bw(base_size = 14) +
+  facet_wrap(~ location_name, scales = "free_y") +
+  scale_y_continuous(labels = comma) +
+  scale_fill_manual(values = custom_colors) +
+  scale_x_discrete(breaks = as.character(seq(1990, 2021, by = 4))) +
+  theme(
+    strip.background = element_rect(fill = "grey80"),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),  # 调整x轴年份字体大小和角度
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 14)
+  )
+##这个！！！
+
+ggplot(EM_DALYs, aes(x = year, y = val, fill = location_name)) +
+     geom_bar(stat = "identity", position = "stack") +
+     labs(
+         title = "DALYs of EM from 1990 to 2021 in SDI Region",
+         x = "Year",
+         y = "Endometriosis Cases",
+         fill = "SDI Region"
+       ) +
+     theme_bw(base_size = 14) +  # 使用白色背景
+     facet_wrap(~ location_name, scales = "free_y") +
+     scale_y_continuous(labels = comma) +
+     scale_fill_manual(values = custom_colors) +  # 使用自定义颜色
+     scale_x_continuous(breaks = c(seq(1990, 2021, by = 4), 2021)) +  # 使用连续型刻度
+     theme(
+         strip.background = element_rect(fill = "grey80"),
+         strip.text = element_text(size = 12, face = "bold"),  # 调整面板标题样式
+         legend.position = "right",  # 将图例放置在右侧
+         legend.title = element_text(size = 12),  # 调整图例标题样式
+         legend.text = element_text(size = 10),   # 调整图例文本样式
+         plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),  # 主标题样式
+         axis.text.x = element_text(size = 8, angle = 45, hjust = 1),
+         plot.subtitle = element_text(hjust = 0.5, size = 14)  # 副标题样式
+       )
+# 保存图形
+ggsave("EM_DALYs SDI_plot.png", width = 10, height = 6, dpi = 300)  # 指定图像大小和分辨率
+
+# DALYs region ------------------------------------------------------------
+
+EM_DALYs <- read.csv("EM_DALYs.csv")
+EM_DALYs <- EM_DALYs %>% 
+  filter(age_name == "All ages") %>% 
+  filter(year %in% c(1990, 2021)) %>% 
+  filter(metric_name == "Number") %>% 
+  filter(location_name %in% c(
+    "Andean Latin America", "Australasia", "Caribbean", "Central Asia",
+    "Central Europe", "Central Latin America", "Central Sub-Saharan Africa", "East Asia",
+    "Eastern Europe", "Eastern Sub-Saharan Africa", "High-income Asia Pacific", "High-income North America", "North Africa and Middle East", "Oceania",
+    "South Asia", "Southeast Asia", "Southern Latin America", "Southern Sub-Saharan Africa",
+    "Tropical Latin America", "Western Europe", "Western Sub-Saharan Africa"))
+write.csv(EM_DALYs, "EM_DALYs_all ages.csv")
+unique(EM_DALYs$location_name)
+##删除重复数据
+EM_DALYs <- EM_DALYs %>% distinct()
+EM_DALYs <- EM_DALYs[-c(25,27,31,32,34,35), ]
+EM_DALYs <- EM_DALYs[,c(3,8,9,10,11)]
+
+# 确保年份列是因子类型，以便按顺序显示
+EM_DALYs$year <- as.factor(EM_DALYs$year)
+
+# 绘制柱状图
+library(ggplot2)
+
+library(scales)
+
+# 自定义颜色
+custom_colors <- c(
+  "1990" = "#92A5D1",    # 1990年颜色
+  "2021" = "#C5DFF4"     # 2021年颜色
+)
+
+# 绘制柱状图用这个！！！
+ggplot(EM_DALYs, aes(x = location_name, y = val, fill = as.factor(year))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "DALYs in Different Regions (1990 vs. 2021)",
+    x = "Region",
+    y = "Endometriosis Cases",
+    fill = "Year"
+  ) +
+  theme_bw(base_size = 14) +  # 使用白色背景
+  scale_y_continuous(labels = scales::comma) +
+  scale_fill_manual(values = custom_colors) +  # 使用自定义颜色
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  # 倾斜X轴标签，方便阅读
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),  # 主标题样式
+    legend.position = "right"  # 将图例放置在右侧
+  )
+# 保存图形
+ggsave("endometriosis_DALYs_region_plot.png", width = 10, height = 6, dpi = 300)  # 指定图像大小和分辨率
+——————————————————————————————————————————————————————————————————————————————————————————————————————————
+# 加载R包 --------------------------------------------------------------------
+library(tidyverse)
+library(dplyr)
+library(purrr)
+library(flextable)
+library(officer)
+library(ggplot2)
+library(scales)
+library(sf)
+# 数据加载 --------------------------------------------------------------------
+#my data region是已经处理好的27个地区的CSV
+mydata_region <- read.csv("mydata_region")
+
+GBD <- read.csv("mydata_country.csv",header = T)
+# 10个年龄阶段Global的Number and ASR incidence -------------------------------------------------
+ages <- c("0-14 years","15-19 years","20-24 years","25-29 years", "30-34 years","35-39 years","40-44 years", "45-49 years", "50-54 years", "55+ years")
+EM_Incidence <- mydata_region %>% 
+  filter(measure_name=="Incidence") %>% 
+  filter(age_name %in% ages) %>% 
+  filter(metric_name == "Number") %>% 
+  filter(location_name =="Global")
+
+# ASR1990 -----------------------------------------------------------------
+
+# 假设数据框名为 'df'，包含年龄组、发病率或DALY值、人口数和年龄权重
+# 假设age_weight为标准化权重的向量
+age_weight <- c(0.2615, 0.08470, 0.08220, 0.07930, 0.07610, 0.07150, 0.06590, 0.0604, 0.05370, 0.16505)
+
+# 为每个年龄段添加权重，然后计算加权的发病率值
+ASR_age_1990 <- mydata_region %>%
+  filter(measure_name == "Incidence", metric_name == "Number", year == 1990) %>%
+  mutate(age_weight = case_when(
+    age_name == "0-14 years" ~ age_weight[1],
+    age_name == "15-19 years" ~ age_weight[2],
+    age_name == "20-24 years" ~ age_weight[3],
+    age_name == "25-29 years" ~ age_weight[4],
+    age_name == "30-34 years" ~ age_weight[5],
+    age_name == "35-39 years" ~ age_weight[6],
+    age_name == "40-44 years" ~ age_weight[7],
+    age_name == "45-49 years" ~ age_weight[8],
+    age_name == "50-54 years" ~ age_weight[9],
+    age_name == "55+ years" ~ age_weight[10]
+  )) %>%
+  mutate(weighted_val = (val / metric_name) * age_weight) %>%  # 假设val为发病率或DALY值
+  summarise(ASR = sum(weighted_val, na.rm = TRUE))
+
+print(ASR_age_1990)
+
+ASR_age_1990 <- mydata_region %>% 
+  age_group = c("0-14 years", "15-19 years", "20-24 years", "25-29 years", 
+                "30-34 years", "35-39 years", "40-44 years", "45-49 years", 
+                "50-54 years", "55+ years"),
+  filter(measure_name=="Incidence") %>% 
+  filter(metric_name == "Number") %>% 
+  age_weight = c(0.20, 0.10, 0.10, 0.10, 0.10, 0.08, 0.08, 0.08, 0.08, 0.08)  # 假设的标准权重
+)
+
+# 计算每个年龄段的加权值
+df$weighted_val <- (df$val / df$population) * df$age_weight
+
+# 计算ASR
+ASR <- sum(df$weighted_val)
+print(ASR)
+
+
+
+
+###1990年  
+EM_1990 <- subset(EM_Incidence, EM_Incidence$year==1990)
+
+##删除重复数据
+EM_1990 <- EM_1990 %>% distinct()
+EM_1990 <- EM_1990[,c(5,8,9,10,11)]
+EM_1990$val <- round(EM_1990$val / 1000, 2)
+EM_1990$upper <- round(EM_1990$upper / 1000,2)
+EM_1990$lower <- round(EM_1990$lower / 1000,2)
+EM_1990$Num_1990 <- paste(EM_1990$lower,EM_1990$upper,sep = ' - ') 
+EM_1990$Num_1990 <- paste(EM_1990$Num_1990,')',sep = '')            
+EM_1990$Num_1990 <- paste('(',EM_1990$Num_1990,sep = '')  
+EM_1990$Num_1990 <- paste(EM_1990$val,EM_1990$Num_1990,sep = '\n') 
+
+
+###2021年  
+EM_2021 <- subset(EM_Incidence, EM_Incidence$year==2021)
+
+##删除重复数据
+EM_2021 <- EM_2021 %>% distinct()
+EM_2021 <- EM_2021[,c(5,8,9,10,11)]
+EM_2021$val <- round(EM_2021$val / 1000, 2)
+EM_2021$upper <- round(EM_2021$upper / 1000,2)
+EM_2021$lower <- round(EM_2021$lower / 1000,2)
+EM_2021$Num_2021 <- paste(EM_2021$lower,EM_2021$upper,sep = ' - ') 
+EM_2021$Num_2021 <- paste(EM_2021$Num_2021,')',sep = '')            
+EM_2021$Num_2021 <- paste('(',EM_2021$Num_2021,sep = '')  
+EM_2021$Num_2021 <- paste(EM_2021$val,EM_2021$Num_2021,sep = '\n') 
+
+
+# #10个年龄阶段Global的Number and ASR DALYs ----------------------------------------------------
+EM_DALYs <- mydata_region %>% 
+  filter(measure_name=="DALYs (Disability-Adjusted Life Years)") %>% 
+  filter(age_name %in% ages) %>% 
+  filter(metric_name == "Number") %>% 
+  filter(location_name =="Global")
+
+EM_DALYs_1990 <- subset(EM_DALYs, EM_DALYs$year==1990)
+##删除重复数据
+EM_DALYs_1990 <- EM_DALYs_1990 %>% distinct()
+EM_DALYs_1990 <- EM_DALYs_1990[,c(5,8,9,10,11)]
+EM_DALYs_1990$val <- round(EM_DALYs_1990$val / 1000, 2)
+EM_DALYs_1990$upper <- round(EM_DALYs_1990$upper / 1000,2)
+EM_DALYs_1990$lower <- round(EM_DALYs_1990$lower / 1000,2)
+EM_DALYs_1990$Num_1990 <- paste(EM_DALYs_1990$lower,EM_DALYs_1990$upper,sep = ' - ') 
+EM_DALYs_1990$Num_1990 <- paste(EM_DALYs_1990$Num_1990,')',sep = '')            
+EM_DALYs_1990$Num_1990 <- paste('(',EM_DALYs_1990$Num_1990,sep = '')  
+EM_DALYs_1990$Num_1990 <- paste(EM_DALYs_1990$val,EM_DALYs_1990$Num_1990,sep = '\n') 
+
+# 描述2021年的DALYS -----------------------------------------------------------
+
+EM_DALYs_2021 <- subset(EM_DALYs, EM_DALYs$year==2021)
+##删除重复数据
+EM_DALYs_2021 <- EM_DALYs_2021 %>% distinct()
+
+EM_DALYs_2021 <- EM_DALYs_2021[,c(5,8,9,10,11)]
+EM_DALYs_2021$val <- round(EM_DALYs_2021$val / 1000, 2)
+EM_DALYs_2021$upper <- round(EM_DALYs_2021$upper / 1000,2)
+EM_DALYs_2021$lower <- round(EM_DALYs_2021$lower / 1000,2)
+EM_DALYs_2021$Num_2021 <- paste(EM_DALYs_2021$lower,EM_DALYs_2021$upper,sep = ' - ') 
+EM_DALYs_2021$Num_2021 <- paste(EM_DALYs_2021$Num_2021,')',sep = '')            
+EM_DALYs_2021$Num_2021 <- paste('(',EM_DALYs_2021$Num_2021,sep = '')  
+EM_DALYs_2021$Num_2021 <- paste(EM_DALYs_2021$val,EM_DALYs_2021$Num_2021,sep = '\n') 
+
+# 将年龄组转换为因子并排序
+EM_1990$age_name <- factor(EM_1990$age_name, levels = ages)
+EM_2021$age_name <- factor(EM_2021$age_name, levels = ages)
+EM_DALYs_1990$age_name <- factor(EM_DALYs_1990$age_name, levels = ages)
+EM_DALYs_2021$age_name <- factor(EM_DALYs_2021$age_name, levels = ages)
+
+
+# 添加年份列，用于区分1990年和2021年
+EM_1990$year <- "1990"
+EM_2021$year <- "2021"
+EM_DALYs_1990$year <- "1990"
+EM_DALYs_2021$year <- "2021"
+
+# 合并数据
+incidence_data <- bind_rows(
+  EM_1990 %>% select(age_name, val, year),
+  EM_2021 %>% select(age_name, val, year)
+)
+
+DALYs_data <- bind_rows(
+  EM_DALYs_1990 %>% select(age_name, val, year),
+  EM_DALYs_2021 %>% select(age_name, val, year)
+)
+
+# 绘制 Incidence 柱状图
+incidence_plot <- ggplot(incidence_data, aes(x = age_name, y = val, fill = year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Global EM Incidence by Age Group (1990 vs 2021)", 
+       x = "Age Group", y = "Incidence (per 1000)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# 绘制 DALYs 柱状图
+DALYs_plot <- ggplot(DALYs_data, aes(x = age_name, y = val, fill = year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Global EM DALYs by Age Group (1990 vs 2021)", 
+       x = "Age Group", y = "DALYs (per 1000)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# 显示图表
+print(incidence_plot)
+print(DALYs_plot)
+###美化V1
+# 自定义颜色
+custom_colors <- c(
+  "1990" = "#92A5D1",    # 1990年颜色
+  "2021" = "#C5DFF4"     # 2021年颜色
+)
+
+# 绘制 Incidence 柱状图
+incidence_plot <- ggplot(incidence_data, aes(x = age_name, y = val, fill = as.factor(year))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Global EM Incidence by Age Group (1990 vs 2021)", 
+    x = "Age Group", 
+    y = "Incidence (per 1000)",
+    fill = "Year"
+  ) +
+  theme_minimal(base_size = 14) +
+  scale_fill_manual(values = custom_colors) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  # 添加网格线和Y轴标题
+  theme(
+    strip.background = element_rect(fill = "grey80"),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),  # 调整x轴年份字体大小和角度
+    axis.title.y = element_text(size = 12),  # Y轴标题样式
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 14)  # 添加缺少的右括号
+  )
+
+# 绘制 DALYs 柱状图
+DALYs_plot <- ggplot(DALYs_data, aes(x = age_name, y = val, fill = as.factor(year))) +
+  geom_bar(stat = "identity", position = "dodge") +  # 为 DALYs_plot 添加 color = "black"
+  labs(
+    title = "Global EM DALYs by Age Group (1990 vs 2021)", 
+    x = "Age Group", 
+    y = "DALYs (per 1000)",
+    fill = "Year"
+  ) +
+  theme_minimal(base_size = 14) +
+  scale_fill_manual(values = custom_colors) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0, 0.1)),  # 添加Y轴的扩展
+    breaks = scales::pretty_breaks(n = 5)  # 确保有足够的刻度线
+  ) +  
+  theme(
+    strip.background = element_rect(fill = "grey80"),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),  # 调整x轴年份字体大小和角度
+    panel.grid.minor = element_blank(),  # 去掉次网格线
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 14)  # 添加缺少的右括号
+  )
+
+# 打印图表
+print(incidence_plot)
+print(DALYs_plot)
+
+
+##V2
+# 自定义颜色
+custom_colors <- c(
+  "1990" = "#92A5D1",    # 1990年颜色
+  "2021" = "#C5DFF4"     # 2021年颜色
+)
+
+# 绘制 Incidence 柱状图
+incidence_plot <- ggplot(incidence_data, aes(x = age_name, y = val, fill = as.factor(year))) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(
+    title = "Global EM Incidence by Age Group (1990 vs 2021)", 
+    x = "Age Group", 
+    y = "Incidence (per 1000)",
+    fill = "Year"
+  ) +
+  theme_minimal(base_size = 14) +
+  scale_fill_manual(values = custom_colors) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0, 0.1)),  # 添加Y轴的扩展
+    breaks = scales::pretty_breaks(n = 5)  # 确保有足够的刻度线
+  ) +  
+  theme(
+    strip.background = element_rect(fill = "grey80"),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),  # 调整x轴年份字体大小和角度
+    axis.title.y = element_text(size = 12),  # Y轴标题样式
+    panel.grid.major = element_line(color = "grey80"),  # 主网格线样式
+    panel.grid.minor = element_blank(),  # 去掉次网格线
+    axis.ticks = element_line(color = "black"),  # 设置刻度线颜色
+    axis.ticks.length = unit(0.25, "cm"),  # 设置刻度线长度
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 14)
+  )
+
+# 绘制 DALYs 柱状图
+DALYs_plot <- ggplot(DALYs_data, aes(x = age_name, y = val, fill = as.factor(year))) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +  
+  labs(
+    title = "Global EM DALYs by Age Group (1990 vs 2021)", 
+    x = "Age Group", 
+    y = "DALYs (per 1000)",
+    fill = "Year"
+  ) +
+  theme_minimal(base_size = 14) +
+  scale_fill_manual(values = custom_colors) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0, 0.1)),  # 添加Y轴的扩展
+    breaks = scales::pretty_breaks(n = 5)  # 确保有足够的刻度线
+  ) +  
+  theme(
+    strip.background = element_rect(fill = "grey80"),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),  
+    axis.title.y = element_text(size = 12),  # Y轴标题样式
+    panel.grid.major = element_line(color = "grey80"),  # 主网格线样式
+    panel.grid.minor = element_blank(),  # 去掉次网格线
+    axis.ticks = element_line(color = "black"),  # 设置刻度线颜色
+    axis.ticks.length = unit(0.25, "cm"),  # 设置刻度线长度
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 14)
+  )
+
+# 打印图表
+print(incidence_plot)
+print(DALYs_plot)
+# 自定义颜色
+custom_colors <- c(
+  "1990" = "#92A5D1",    # 1990年颜色
+  "2021" = "#C5DFF4"     # 2021年颜色
+)
+
+# 绘制 Incidence 柱状图
+incidence_plot <- ggplot(incidence_data, aes(x = age_name, y = val, fill = as.factor(year))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Global EM Incidence by Age Group (1990 vs 2021)", 
+    x = "Age Group", 
+    y = "Incidence (per 1000)",
+    fill = "Year"
+  ) +
+  theme_minimal(base_size = 14) +
+  scale_fill_manual(values = custom_colors) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0, 0.1)),  # 添加Y轴的扩展
+    breaks = scales::pretty_breaks(n = 5)  # 确保有足够的刻度线
+  ) +  
+  theme(
+    strip.background = element_rect(fill = "grey80"),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),  # 调整x轴年份字体大小和角度
+    axis.title.y = element_text(size = 12),  # Y轴标题样式
+    panel.grid.major = element_line(color = "grey80"),  # 主网格线样式
+    panel.grid.minor = element_blank(),  # 去掉次网格线
+    axis.ticks = element_line(color = "grey"),  # 设置刻度线颜色
+    axis.ticks.length = unit(0.25, "cm"),  # 设置刻度线长度
+    axis.line = element_line(color = "grey"),  # 设置X轴和Y轴黑色线条
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 14)
+  )
+
+# 绘制 DALYs 柱状图
+DALYs_plot <- ggplot(DALYs_data, aes(x = age_name, y = val, fill = as.factor(year))) +
+  geom_bar(stat = "identity", position = "dodge") +  
+  labs(
+    title = "Global EM DALYs by Age Group (1990 vs 2021)", 
+    x = "Age Group", 
+    y = "DALYs (per 1000)",
+    fill = "Year"
+  ) +
+  theme_minimal(base_size = 14) +
+  scale_fill_manual(values = custom_colors) +
+  scale_y_continuous(
+    expand = expansion(mult = c(0, 0.1)),  # 添加Y轴的扩展
+    breaks = scales::pretty_breaks(n = 5)  # 确保有足够的刻度线
+  ) +  
+  theme(
+    strip.background = element_rect(fill = "grey80"),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),  
+    axis.title.y = element_text(size = 12),  # Y轴标题样式
+    panel.grid.major = element_line(color = "grey80"),  # 主网格线样式
+    panel.grid.minor = element_blank(),  # 去掉次网格线
+    axis.ticks = element_line(color = "grey"),  # 设置刻度线颜色
+    axis.ticks.length = unit(0.25, "cm"),  # 设置刻度线长度
+    axis.line = element_line(color = "grey"),  # 设置X轴和Y轴黑色线条
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 14)
+  )
+
+# 打印图表
+print(incidence_plot)
+print(DALYs_plot)
+
+# 加载gridExtra包
+library(gridExtra)
+
+# 将两个图表并排显示
+combined_plot <- grid.arrange(incidence_plot, DALYs_plot, ncol = 2)
+
+# 打印组合后的图表
+print(combined_plot)
+
+ggsave("endometriosis_age incidence and DALYs.png", width = 10, height = 6, dpi = 300)  # 指定图像大小和分辨率
+
+# 加载必要的包
+library(gridExtra)
+library(ggplot2)
+
+# 创建并排组合的图表
+combined_plot <- grid.arrange(incidence_plot, DALYs_plot, ncol = 2)
+
+# 导出图表为 PNG 文件
+ggsave("combined_plot.png", plot = combined_plot, width = 12, height = 6, units = "in", dpi = 300)
+
+# 导出图表为 PDF 文件
+ggsave("combined_plot.pdf", plot = combined_plot, width = 12, height = 6, units = "in")
